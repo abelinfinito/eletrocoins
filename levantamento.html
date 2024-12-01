@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Levantamento de Dinheiro</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #c5c5bb;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      background-color: #9de4e4;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      max-width: 400px;
+      width: 100%;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 1.5rem;
+      color: #333;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: bold;
+    }
+
+    input {
+      width: 100%;
+      padding: 0.8rem;
+      margin-bottom: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1rem;
+    }
+
+    button {
+      width: 100%;
+      padding: 0.8rem;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    #historico {
+      margin-top: 2rem;
+    }
+
+    #historico h2 {
+      text-align: center;
+      color: #444;
+    }
+
+    #historicoLista {
+      list-style: none;
+      padding: 0;
+    }
+
+    #historicoLista li {
+      background-color: #e9e9e9;
+      padding: 1rem;
+      margin-bottom: 0.5rem;
+      border-radius: 5px;
+      font-size: 0.9rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .remover-btn {
+      background-color: #ff4d4d;
+      color: white;
+      border: none;
+      padding: 0.5rem 0.8rem;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .remover-btn:hover {
+      background-color: #cc0000;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Levantamento Iban</h1>
+    <form id="levantamentoForm">
+      <label for="iban">IBAN (21 dígitos):</label>
+      <input type="text" id="iban" maxlength="21" pattern="\d{21}" placeholder="AO006" required>
+
+      <label for="valor">Valor (AO):</label>
+      <input type="tel" id="valor" min="1" step="0.01" placeholder="Ex: 100.00" required>
+
+      <label for="nome">Nome:</label>
+      <input type="text" id="nome" placeholder="Nome do beneficiário" required>
+
+      <button type="submit">Levantar</button>
+    </form>
+
+    <div id="historico">
+      <h2>Histórico de Levantamentos</h2>
+      <ul id="historicoLista">
+        <!-- Histórico gerado dinamicamente -->
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    // Carregar histórico ao iniciar
+    window.onload = function() {
+      carregarHistorico();
+    };
+
+    document.getElementById('levantamentoForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const iban = document.getElementById('iban').value;
+      const valor = document.getElementById('valor').value;
+      const nome = document.getElementById('nome').value;
+
+      // Verificar IBAN com 21 dígitos
+      if (iban.length !== 21 || isNaN(iban)) {
+        alert('O IBAN deve ter 21 dígitos numéricos.');
+        return;
+      }
+
+      // Limitação de 2 levantamentos por dia
+      let levantamentosHoje = JSON.parse(localStorage.getItem('levantamentosHoje')) || [];
+      const hoje = new Date().toISOString().split('T')[0];
+
+      // Filtrar levantamentos do dia
+      levantamentosHoje = levantamentosHoje.filter(item => item.data === hoje);
+
+      if (levantamentosHoje.length >= 2) {
+        alert('Só é permitido realizar 2 levantamentos por dia.');
+        return;
+      }
+
+      // Adicionar novo levantamento ao histórico
+      const novoLevantamento = {
+        iban,
+        valor,
+        nome,
+        data: hoje
+      };
+
+      levantamentosHoje.push(novoLevantamento);
+      localStorage.setItem('levantamentosHoje', JSON.stringify(levantamentosHoje));
+      adicionarAoHistorico(novoLevantamento);
+
+      // Limpar formulário
+      document.getElementById('levantamentoForm').reset();
+      alert('Levantamento efetuado com sucesso!');
+    });
+
+    function adicionarAoHistorico(levantamento) {
+      const historicoLista = document.getElementById('historicoLista');
+      const novoItem = document.createElement('li');
+
+      novoItem.innerHTML = `
+        <span>IBAN: ${levantamento.iban}, Valor: €${levantamento.valor}, Nome: ${levantamento.nome}</span>
+        <button class="remover-btn">Remover</button>
+      `;
+
+      // Evento de remoção
+      novoItem.querySelector('.remover-btn').addEventListener('click', function() {
+        historicoLista.removeChild(novoItem);
+        removerDoLocalStorage(levantamento);
+      });
+
+      historicoLista.appendChild(novoItem);
+    }
+
+    function carregarHistorico() {
+      const historicoGuardado = JSON.parse(localStorage.getItem('levantamentosHoje')) || [];
+      historicoGuardado.forEach(levantamento => {
+        adicionarAoHistorico(levantamento);
+      });
+    }
+
+    function removerDoLocalStorage(levantamentoRemover) {
+      let levantamentosHoje = JSON.parse(localStorage.getItem('levantamentosHoje')) || [];
+      levantamentosHoje = levantamentosHoje.filter(
+        levantamento =>
+          !(levantamento.iban === levantamentoRemover.iban &&
+            levantamento.valor === levantamentoRemover.valor &&
+            levantamento.nome === levantamentoRemover.nome)
+      );
+      localStorage.setItem('levantamentosHoje', JSON.stringify(levantamentosHoje));
+    }
+  </script>
+</body>
+</html>
